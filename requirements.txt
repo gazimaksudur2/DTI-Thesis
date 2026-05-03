@@ -4,3 +4,6 @@
 PyTDC
 pandas
 pyarrow
+scikit-learn
+scipy
+xgboost

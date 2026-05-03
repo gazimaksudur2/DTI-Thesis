@@ -24,6 +24,12 @@ This thesis project builds a reproducible evaluation pipeline for **drug–targe
 
 ## Setup
 
+This repository uses Git LFS for large dataset files.
+
+```bash
+git lfs install
+git clone https://github.com/gazimaksudur2/DTI-Thesis.git
+
 Assume **Git Bash on Windows** and a conda environment named **`dti_research`** (already created on your machine).
 
 ```bash
