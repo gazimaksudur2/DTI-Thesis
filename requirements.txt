@@ -1,0 +1,6 @@
+# On Windows, install PyTDC from conda-forge first to avoid tiledbsoma build failures:
+#   conda install -c conda-forge pytdc
+# Then: pip install -r requirements.txt
+PyTDC
+pandas
+pyarrow
