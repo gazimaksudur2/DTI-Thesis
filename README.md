@@ -1,49 +1,6 @@
-# Re-evaluating Cross-Modal Feature Fusion in DTI: The Impact of Data Leakage and Cold-Start Splitting
-
 ## Abstract
 
-This thesis project builds a reproducible evaluation pipeline for **drug-target interaction (DTI)** regression with a direct focus on **data leakage**. The core comparison is between a naive **random split** and strict **cold-start splits** (drug-cold/scaffold and target-cold/entity) to show how evaluation difficulty changes when the model must generalize to unseen chemistry or proteins.
-
-This repository now implements **Phase 1, Phase 2, and Phase 3** from `guideline.md`: ingestion, standardization/splitting, and an XGBoost baseline experiment runner with report generation.
-
-## Project status by phase
-
-### Phase 1 (Initialization and ingestion) - Completed
-
-- `README.md`, project structure, and environment instructions created.
-- Ingestion pipeline implemented in `src/data_ingestion/fetch_datasets.py`.
-- Datasets fetched via PyTDC (`DAVIS`, `KIBA`, `BindingDB_Kd`) and exported to `data/raw/*.parquet`.
-- Logging includes dataset shape, columns, and missing-value summary.
-
-### Phase 2 (Standardization and cold-start splits) - Completed
-
-- `src/data_preprocessing/standardize.py`
-  - Canonicalizes `drug_smiles` with RDKit (largest fragment strategy).
-  - Suppresses RDKit C++ logs for cleaner terminal output.
-  - Deduplicates by `(drug_smiles, target_sequence)` with median `affinity_label`.
-  - Writes standardized outputs to `data/processed/standardized/*.parquet`.
-- `src/data_preprocessing/splitters.py`
-  - Implements `RandomSplitter`, `DrugColdScaffoldSplitter`, `TargetColdSplitter`.
-  - Uses reproducible seed (`RANDOM_SEED = 42`).
-- `src/data_preprocessing/generate_splits.py`
-  - Exports train/val/test Parquets to:
-    - `data/processed/splits/{dataset}/random/`
-    - `data/processed/splits/{dataset}/drug_cold/`
-    - `data/processed/splits/{dataset}/target_cold/`
-  - Logs fold sizes and overlap checks (0 scaffold overlap for drug-cold, 0 target overlap for target-cold).
-
-### Phase 3 (Classical ML baseline with XGBoost) - Completed
-
-- `src/models/features.py`
-  - Drug features: Morgan fingerprints (radius 2, 1024 bits).
-  - Target features: AAC vector (20 amino acids + unknown bucket).
-  - Feature fusion: concatenated drug+target vector.
-- `src/models/train_xgboost.py`
-  - Trains `xgboost.XGBRegressor` with validation-based early stopping.
-  - Reports required metrics: **MSE**, **Pearson r**, **Concordance Index (CI)**.
-- `src/models/run_experiments.py`
-  - Runs experiments on Davis `random`, `drug_cold`, `target_cold` splits sequentially.
-  - Writes markdown summary to `docs/experiment_results.md`.
+This thesis project builds a reproducible evaluation pipeline for **drug–target interaction (DTI)** models. Random train/test splits often let models see chemically or structurally similar drugs and proteins in both halves of the split, causing **optimistic bias** (**data leakage**). We prioritize **cold-start** protocols—drug-cold, target-cold, and drug+target-cold—that force generalization to unseen entities, and we compare them to naive random splitting. Phase 1 focuses on documentation and **raw data ingestion**; model training and split implementations come after ingestion is verified.
 
 ## Directory structure
 
@@ -53,34 +10,19 @@ This repository now implements **Phase 1, Phase 2, and Phase 3** from `guideline
 ├── guideline.md
 ├── requirements.txt
 ├── data/
-│   ├── raw/                  # Raw dataset parquet exports from ingestion
-│   ├── tdc_cache/            # PyTDC source cache (.tab/.csv), auto-managed
-│   └── processed/
-│       ├── standardized/     # Canonicalized + deduplicated parquet tables
-│       └── splits/           # random / drug_cold / target_cold train/val/test
-├── docs/
-│   ├── README.md
-│   ├── davis.md
-│   ├── kiba.md
-│   ├── bindingdb_kd.md
-│   └── experiment_results.md
+│   ├── raw/          # Benchmark tables written by ingestion (ignored by git except .gitkeep)
+│   ├── tdc_cache/    # PyTDC downloaded source files (.tab/.csv); auto-managed; gitignored
+│   └── processed/    # Reserved for cleaned / feature-ready data (later phases)
 ├── src/
 │   ├── data_ingestion/
 │   │   └── fetch_datasets.py
-│   ├── data_preprocessing/
-│   │   ├── standardize.py
-│   │   ├── splitters.py
-│   │   └── generate_splits.py
-│   └── models/
-│       ├── features.py
-│       ├── train_xgboost.py
-│       └── run_experiments.py
-└── notebooks/
+│   └── models/       # Reserved for modeling code (later phases)
+└── notebooks/        # Exploratory and reporting notebooks
 ```
 
 ## Setup
 
-Assume Windows + conda env `dti_research`.
+Assume **Git Bash on Windows** and a conda environment named **`dti_research`** (already created on your machine).
 
 ```bash
 conda activate dti_research
@@ -89,58 +31,38 @@ conda install -c conda-forge pytdc -y
 pip install -r requirements.txt
 ```
 
-Notes:
-- On Windows, installing `PyTDC` through conda-forge avoids common build issues from `pip`-only installation.
-- Run one ingestion process at a time to avoid temporary file locking in `data/tdc_cache/`.
+On Windows, `pip install PyTDC` alone can fail while compiling optional dependencies such as **tiledbsoma**; conda-forge provides pre-built binaries.
+
+PyTDC stores downloaded `.tab` / `.csv` sources under **`data/tdc_cache/`** (configured by `fetch_datasets.py`, ignored by git). Processed exports go to **`data/raw/`**.
 
 ## Dataset overview
 
-| Dataset | Role | Source name in TDC |
-|--------|------|--------------------|
-| Davis | Kinase-focused affinity benchmark | `DAVIS` |
-| KIBA | Integrated kinase bioactivity benchmark | `KIBA` |
-| BindingDB Kd | Larger affinity benchmark subset | `BindingDB_Kd` |
+| Dataset | Role in this repo | Notes |
+|--------|-------------------|--------|
+| **Davis** | Primary kinase inhibitor benchmark | \(K_d\)-focused screen; TDC exposes `DAVIS` with SMILES, sequence, and affinity. |
+| **KIBA** | Integrated bioactivity matrix | Combines complementary assay types into a unified score (TDC: `KIBA`). |
+| **BindingDB** | Large public affinity benchmark | In TDC, BindingDB is split by assay units. **Default ingestion:** `BindingDB_Kd` (regression, comparable affinity type to Davis-style \(K_d\)). Alternatives: `BindingDB_IC50`, `BindingDB_Ki` ([TDC DTI task](http://tdcommons.ai/multi_pred_tasks/dti/)). |
 
-## End-to-end usage
+## Fetch raw data
 
-### 1) Fetch raw datasets (Phase 1)
+From the repository root:
 
 ```bash
+conda activate dti_research
 python src/data_ingestion/fetch_datasets.py
 ```
 
-Optional CSV mirror:
+- Writes **Parquet** files under `data/raw/` by default.
+- Optional CSV mirror for each dataset:
 
-```bash
-python src/data_ingestion/fetch_datasets.py --csv
-```
+  ```bash
+  python src/data_ingestion/fetch_datasets.py --csv
+  ```
 
-### 2) Standardize and split (Phase 2)
+Uses [PyTDC](https://github.com/mims-harvard/TDC) (`tdc.multi_pred.DTI`) to download benchmark-ready tables (no manual CSV hunting). Logs shapes, dtypes, missing-value counts, and output paths.
 
-```bash
-python src/data_preprocessing/standardize.py
-python src/data_preprocessing/generate_splits.py
-```
+Run **one** ingestion at a time so Windows does not lock `data/tdc_cache/*.tab` while another process downloads or parses the same file.
 
-### 3) Run XGBoost baseline experiments (Phase 3)
+## Phase boundary
 
-```bash
-python src/models/run_experiments.py --dataset davis
-```
-
-## Current Phase 3 result snapshot (Davis)
-
-From `docs/experiment_results.md`:
-
-| Split | MSE | Pearson r | CI |
-|------|----:|----------:|---:|
-| `random` | 7757754.000000 | 0.715890 | 0.866806 |
-| `drug_cold` | 12079390.000000 | 0.355803 | 0.682012 |
-| `target_cold` | 11368114.000000 | 0.565301 | 0.786867 |
-
-This pattern is consistent with the thesis premise: performance drops under cold-start evaluation compared with random splitting, highlighting optimistic bias in leakage-prone settings.
-
-## Documentation for reviewers
-
-- Dataset schema and counts: `docs/README.md`, `docs/davis.md`, `docs/kiba.md`, `docs/bindingdb_kd.md`
-- Experiment metrics table: `docs/experiment_results.md`
+Do **not** start model implementation or cold-start splitting until raw ingestion completes successfully and outputs are inspected.
