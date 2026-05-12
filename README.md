@@ -1,5 +1,3 @@
-# Re-evaluating Cross-Modal Feature Fusion in DTI: The Impact of Data Leakage and Cold-Start Splitting
-
 ## Abstract
 
 This thesis project builds a reproducible evaluation pipeline for **drug-target interaction (DTI)** regression with a direct focus on **data leakage**. The core comparison is between a naive **random split** and strict **cold-start splits** (drug-cold/scaffold and target-cold/entity) to show how evaluation difficulty changes when the model must generalize to unseen chemistry or proteins.
@@ -45,6 +43,7 @@ This repository now implements **Phase 1, Phase 2, Phase 3, and Phase 4** from `
 - `src/models/run_experiments.py`
   - Runs experiments on Davis `random`, `drug_cold`, `target_cold` splits sequentially.
   - Writes markdown summary to `docs/experiment_results.md`.
+This thesis project builds a reproducible evaluation pipeline for **drug–target interaction (DTI)** models. Random train/test splits often let models see chemically or structurally similar drugs and proteins in both halves of the split, causing **optimistic bias** (**data leakage**). We prioritize **cold-start** protocols—drug-cold, target-cold, and drug+target-cold—that force generalization to unseen entities, and we compare them to naive random splitting. Phase 1 focuses on documentation and **raw data ingestion**; model training and split implementations come after ingestion is verified.
 
 ### Phase 4 (Multi-model validation, visualization, and MLOps)
 
@@ -89,6 +88,9 @@ This repository now implements **Phase 1, Phase 2, Phase 3, and Phase 4** from `
 │       ├── mse_comparison.png
 │       ├── ci_comparison.png
 │       └── shap_summary.png
+│   ├── raw/          # Benchmark tables written by ingestion (ignored by git except .gitkeep)
+│   ├── tdc_cache/    # PyTDC downloaded source files (.tab/.csv); auto-managed; gitignored
+│   └── processed/    # Reserved for cleaned / feature-ready data (later phases)
 ├── src/
 │   ├── data_ingestion/
 │   │   └── fetch_datasets.py
@@ -107,11 +109,13 @@ This repository now implements **Phase 1, Phase 2, Phase 3, and Phase 4** from `
 │       ├── plot_metrics.py     # Bar charts (MSE, CI)
 │       └── explain_model.py    # SHAP summary plot
 └── notebooks/
+│   └── models/       # Reserved for modeling code (later phases)
+└── notebooks/        # Exploratory and reporting notebooks
 ```
 
 ## Setup
 
-Assume Windows + conda env `dti_research`.
+Assume **Git Bash on Windows** and a conda environment named **`dti_research`** (already created on your machine).
 
 ```bash
 conda activate dti_research
@@ -171,28 +175,33 @@ Optional verification (prints `cuda` or `cpu`):
 ```bash
 python -c "import sys; sys.path.insert(0, 'src'); from utils.device import resolve_device; print(resolve_device('auto'))"
 ```
+On Windows, `pip install PyTDC` alone can fail while compiling optional dependencies such as **tiledbsoma**; conda-forge provides pre-built binaries.
+
+PyTDC stores downloaded `.tab` / `.csv` sources under **`data/tdc_cache/`** (configured by `fetch_datasets.py`, ignored by git). Processed exports go to **`data/raw/`**.
 
 ## Dataset overview
 
-| Dataset | Role | Source name in TDC |
-|--------|------|--------------------|
-| Davis | Kinase-focused affinity benchmark | `DAVIS` |
-| KIBA | Integrated kinase bioactivity benchmark | `KIBA` |
-| BindingDB Kd | Larger affinity benchmark subset | `BindingDB_Kd` |
+| Dataset | Role in this repo | Notes |
+|--------|-------------------|--------|
+| **Davis** | Primary kinase inhibitor benchmark | \(K_d\)-focused screen; TDC exposes `DAVIS` with SMILES, sequence, and affinity. |
+| **KIBA** | Integrated bioactivity matrix | Combines complementary assay types into a unified score (TDC: `KIBA`). |
+| **BindingDB** | Large public affinity benchmark | In TDC, BindingDB is split by assay units. **Default ingestion:** `BindingDB_Kd` (regression, comparable affinity type to Davis-style \(K_d\)). Alternatives: `BindingDB_IC50`, `BindingDB_Ki` ([TDC DTI task](http://tdcommons.ai/multi_pred_tasks/dti/)). |
 
-## End-to-end usage
+## Fetch raw data
 
-### 1) Fetch raw datasets (Phase 1)
+From the repository root:
 
 ```bash
+conda activate dti_research
 python src/data_ingestion/fetch_datasets.py
 ```
 
-Optional CSV mirror:
+- Writes **Parquet** files under `data/raw/` by default.
+- Optional CSV mirror for each dataset:
 
-```bash
-python src/data_ingestion/fetch_datasets.py --csv
-```
+  ```bash
+  python src/data_ingestion/fetch_datasets.py --csv
+  ```
 
 ### 2) Standardize and split (Phase 2)
 
@@ -253,3 +262,10 @@ All outputs (`docs/`, `models/`, `logs/`) are persisted on the host via the volu
 - Bar charts: `docs/figures/mse_comparison.png`, `docs/figures/ci_comparison.png`
 - SHAP summary: `docs/figures/shap_summary.png`
 - Run history: `logs/phase4_{dataset}_*.log`
+Uses [PyTDC](https://github.com/mims-harvard/TDC) (`tdc.multi_pred.DTI`) to download benchmark-ready tables (no manual CSV hunting). Logs shapes, dtypes, missing-value counts, and output paths.
+
+Run **one** ingestion at a time so Windows does not lock `data/tdc_cache/*.tab` while another process downloads or parses the same file.
+
+## Phase boundary
+
+Do **not** start model implementation or cold-start splitting until raw ingestion completes successfully and outputs are inspected.
