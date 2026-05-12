@@ -33,3 +33,6 @@ Thumbs.db
 guideline.md
 
 logs/*
+
+fetch_protein_for_davis.ipynb
+davis_practice/*
