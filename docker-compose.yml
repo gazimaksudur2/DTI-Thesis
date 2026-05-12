@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  dti:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: ["gpu"]
+    command: >
+      bash -lc
+      "python src/models/run_experiments.py --dataset davis --device auto"
+

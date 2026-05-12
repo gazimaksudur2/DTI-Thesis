@@ -3,13 +3,21 @@
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 from scipy.stats import pearsonr
 from sklearn.metrics import mean_squared_error
 from xgboost import XGBRegressor
+
+_SRC_ROOT = Path(__file__).resolve().parents[1]
+if str(_SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SRC_ROOT))
+
+from utils.device import resolve_device, xgb_device_params  # noqa: E402
 
 RANDOM_SEED = 42
 
@@ -69,8 +77,24 @@ def train_and_evaluate(
     x_test: np.ndarray,
     y_test: np.ndarray,
     model_params: dict[str, Any] | None = None,
+    device: str = "auto",
+    save_model_path: Path | None = None,
 ) -> EvalMetrics:
-    """Train XGBRegressor with validation early stopping and evaluate on test split."""
+    """
+    Train XGBRegressor with validation early stopping and evaluate on test split.
+
+    Parameters
+    ----------
+    device:
+        One of ``"auto"``, ``"gpu"``, or ``"cpu"``. ``"auto"`` uses CUDA when a
+        usable NVIDIA device is detected (e.g. RTX 4060 Ti) and falls back to
+        CPU otherwise. ``"gpu"`` raises if no CUDA device is available.
+    save_model_path:
+        If provided, the fitted model is serialized to this path (JSON format
+        recommended, e.g. ``models/davis/xgboost_random.json``) so downstream
+        consumers like the SHAP explainer can reload it.
+    """
+    resolved_device = resolve_device(device)
     params: dict[str, Any] = {
         "objective": "reg:squarederror",
         "n_estimators": 3000,
@@ -85,6 +109,7 @@ def train_and_evaluate(
         "eval_metric": "rmse",
         "early_stopping_rounds": 50,
     }
+    params.update(xgb_device_params(resolved_device))
     if model_params:
         params.update(model_params)
 
@@ -95,6 +120,10 @@ def train_and_evaluate(
         eval_set=[(x_val, y_val)],
         verbose=False,
     )
+
+    if save_model_path is not None:
+        save_model_path.parent.mkdir(parents=True, exist_ok=True)
+        model.save_model(str(save_model_path))
 
     preds = model.predict(x_test)
     mse = float(mean_squared_error(y_test, preds))

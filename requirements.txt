@@ -1,9 +1,16 @@
 # On Windows, install PyTDC from conda-forge first to avoid tiledbsoma build failures:
 #   conda install -c conda-forge pytdc
 # Then: pip install -r requirements.txt
+#
+# For GPU (CUDA) support on an NVIDIA RTX 4060 Ti or similar, use WSL2 Ubuntu
+# inside the same `dti_research` conda env and additionally install:
+#   pip install -r requirements-gpu.txt
 PyTDC
 pandas
 pyarrow
-scikit-learn
+scikit-learn>=1.3
 scipy
-xgboost
+xgboost>=2.0
+matplotlib>=3.7
+seaborn>=0.13
+shap>=0.44

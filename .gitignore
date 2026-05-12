@@ -17,6 +17,12 @@ data/processed/*
 data/tdc_cache/*
 !data/tdc_cache/.gitkeep
 
+models/*
+!models/.gitkeep
+
+docs/figures/*
+!docs/figures/.gitkeep
+
 # OS / IDE
 .DS_Store
 Thumbs.db
@@ -25,3 +31,5 @@ Thumbs.db
 
 
 guideline.md
+
+logs/*

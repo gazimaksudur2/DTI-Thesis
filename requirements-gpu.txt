@@ -1,0 +1,18 @@
+# GPU dependencies for DTIWork (NVIDIA CUDA, e.g. RTX 4060 Ti).
+#
+# Use this file inside WSL2 Ubuntu (or any Linux host) on top of the base
+# requirements:
+#
+#   conda activate dti_research
+#   pip install -r requirements.txt -r requirements-gpu.txt
+#
+# Notes:
+# - Linux PyPI wheels for `xgboost>=2.0` ship with CUDA support out of the box,
+#   so no separate CUDA toolkit install is required on the Python side. The
+#   only host requirement is a working NVIDIA driver (verify with `nvidia-smi`).
+# - On Windows-native, conda-forge does not publish `py-xgboost-gpu` for win-64,
+#   which is why we use WSL2 for GPU runs and keep Windows-native as the CPU
+#   fallback path.
+# - If you prefer a fully conda-managed Linux environment, you can replace the
+#   pip install with: `conda install -c conda-forge py-xgboost-gpu`.
+xgboost>=2.0

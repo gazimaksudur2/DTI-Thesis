@@ -1,0 +1,7 @@
+dataset,device,split,model,model_label,mse,pearson_r,ci,best_iteration
+davis,cuda,random,xgboost,XGBoost,7730278.500000,0.717201,0.868523,1135
+davis,cuda,random,random_forest,Random Forest,10066469.408728,0.607415,0.817390,-1
+davis,cuda,drug_cold,xgboost,XGBoost,12666642.000000,0.339042,0.675695,3
+davis,cuda,drug_cold,random_forest,Random Forest,11594657.552453,0.496725,0.795102,-1
+davis,cuda,target_cold,xgboost,XGBoost,11461091.000000,0.560446,0.785974,412
+davis,cuda,target_cold,random_forest,Random Forest,11403880.392310,0.564675,0.785488,-1
